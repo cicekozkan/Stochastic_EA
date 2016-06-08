@@ -21,41 +21,49 @@ double mode_signal = 0;
 int k_period = 5;
 int d_period = 3;
 int slowing = 3;
+int lfh = INVALID_HANDLE; ///< Log file handle
+
+//+------------------------------------------------------------------+
+//| Global functions                                                 |
+//+------------------------------------------------------------------+
+/*!
+Open order in current chart's symbol
+*/ 
+int openOrder(int op_type, double lot, double sl_pips, double tp_pips)
+{
+   string sym = Symbol(); ///< Current chart's symbol
+   int ticket = -1;
+   double price = 0.0;
+   double point = MarketInfo(sym, MODE_POINT) * 10.;
+   double sl = 0.0, tp = 0.0;
+   int i_try = 0;
+   
+   if(op_type == OP_SELL){
+      price = MarketInfo(sym, MODE_BID);	
+      if(sl_pips != 0.0)   sl = price + sl_pips * point;
+      if(tp_pips != 0.0)   tp = price - tp_pips * point;
+   }else if (op_type == OP_BUY){
+      price = MarketInfo(sym, MODE_ASK);
+      if(sl_pips != 0.0)   sl = price - sl_pips * point;
+      if(tp_pips != 0.0)   tp = price + tp_pips * point;
+   }
+   
+   for (i_try = 0; i_try < MAX_NUM_TRIALS; i_try++){
+      ticket = OrderSend(sym, op_type, lot, price, slippage, sl, tp);
+      if (ticket != -1) break;
+   }//end max trials
+   if (i_try == MAX_NUM_TRIALS){
+      Comment(sym, " Paritesinde emir acilamadi. Hata kodu = ", GetLastError());
+   }
+   return !(i_try < MAX_NUM_TRIALS); 
+}
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
 int OnInit()
 {
-  string sym = Symbol(); ///< Current chart's symbol
-  int op_type = OP_BUY; ///< Operation
-  int k = 0;
-  int ticket = -1;
-  double price = 0.0;
-  double point = MarketInfo(sym, MODE_POINT) * 10.;
-  double tp = 0.0, sl = 0.0;
-  
-  if(num_open_orders < num_orders_to_open){
-    if(op_type == OP_SELL){
-      price = MarketInfo(sym, MODE_BID);	
-      sl = price + stop_loss_pips * point;
-      tp = price - take_profit_pips * point;
-    }else if (op_type == OP_BUY){
-      price = MarketInfo(sym, MODE_ASK);
-      sl = price - stop_loss_pips * point;
-      tp = price + take_profit_pips * point;
-    }
-
-    for (k = 0; k < MAX_NUM_TRIALS; k++){
-      ticket = OrderSend(sym, op_type, lot_to_open, price, slippage, sl, tp);
-      if (ticket != -1) break;
-    }//end max trials
-    if (k == MAX_NUM_TRIALS){
-      Comment(sym, " Paritesinde emir acilamadi. Hata kodu = ", GetLastError());
-    }else{
-      ++num_open_orders;
-    }
-  }//end if num_open_orders    
+  if(openOrder(OP_BUY, lot_to_open, stop_loss_pips, take_profit_pips))  Comment(Symbol(), " Paritesinde emir acilamadi.");
   return(INIT_SUCCEEDED);
 }
 //+------------------------------------------------------------------+
@@ -74,5 +82,10 @@ void OnTick()
   main_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, MODE_SMA, 1, MODE_MAIN, 0);
   mode_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, MODE_SMA, 1, MODE_SIGNAL, 0);
   Comment("Main signal = ", main_signal, ", Mode signal = ", mode_signal);
+  
+  
+  
+  
+  
 }
 //+------------------------------------------------------------------+
