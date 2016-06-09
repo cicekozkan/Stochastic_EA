@@ -129,14 +129,14 @@ int checkStochasticSignal()
    return 0; // do nothing
 }
 
-void write_log(int op_type)
+void write_log(int op_type, string open_close)
 {
    MqlDateTime str; 
    TimeToStruct(TimeCurrent(), str);
    string date = IntegerToString(str.year) + "/" + IntegerToString(str.mon) + "/" + IntegerToString(str.day);
    string time = IntegerToString(str.hour) + ":" + IntegerToString(str.min) + ":" + IntegerToString(str.sec);
    
-   if(lfh != INVALID_HANDLE)  FileWrite(lfh, date, time, Symbol(), op_type==OP_BUY?"BUY":"SELL");
+   if(lfh != INVALID_HANDLE)  FileWrite(lfh, date, time, Symbol(), op_type==OP_BUY?"BUY":"SELL", open_close);
 }
 
 //+------------------------------------------------------------------+
@@ -146,7 +146,7 @@ int OnInit()
 {
   //if(openOrder(OP_BUY, lot_to_open, stop_loss_pips, take_profit_pips))  Comment(Symbol(), " Paritesinde emir acilamadi.");
   lfh = FileOpen("S_log.csv", FILE_WRITE | FILE_CSV);
-  if(lfh != INVALID_HANDLE)   FileWrite(lfh, "Date", "Time", "Parity", "Position");
+  if(lfh != INVALID_HANDLE)   FileWrite(lfh, "Date", "Time", "Parity", "Position", "Open/Close");
   return(INIT_SUCCEEDED);
 }
 //+------------------------------------------------------------------+
@@ -172,21 +172,23 @@ void OnTick()
    if(market_trend != previous_market_trend && market_trend == 1){
       if(one_order == TRUE){
          if(closeAllOrders()) Comment("Cannot close all orders");
+         else write_log(OP_BUY, "Close");
       }//end if one_order
       if(openOrder(OP_SELL, lot_to_open, stop_loss_pips, take_profit_pips)){
          Comment(Symbol(), " Paritesinde satis emiri acilamadi.");
       }else{
-         write_log(OP_SELL); 
+         write_log(OP_SELL, "Open"); 
          previous_market_trend = market_trend;  
       }
    }else if(market_trend != previous_market_trend && market_trend == -1){
       if(one_order == TRUE){
          if(closeAllOrders()) Comment("Cannot close all orders");
+         else write_log(OP_SELL, "Close");
       }//end if one_order
       if(openOrder(OP_BUY, lot_to_open, stop_loss_pips, take_profit_pips)){
          Comment(Symbol(), " Paritesinde alis emiri acilamadi.");
       }else{
-         write_log(OP_BUY);
+         write_log(OP_BUY, "Open");
          previous_market_trend = market_trend;
       }
    }//enf if market_trend  
