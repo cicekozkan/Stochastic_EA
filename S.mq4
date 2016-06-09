@@ -18,6 +18,8 @@ extern double take_profit_pips = 6.0; // Take profit pips
 extern int k_period = 5; // %K
 extern int d_period = 3; // %D
 extern int slowing = 3; // Slowing
+extern bool one_order = FALSE; // Open only one order
+extern ENUM_MA_METHOD averaging_method = MODE_SMA; // SO averaging method
 int num_orders_to_open = 1;
 int num_open_orders = 0;
 double main_signal = 0;
@@ -61,6 +63,34 @@ int openOrder(int op_type, double lot, double sl_pips, double tp_pips)
    return !(i_try < MAX_NUM_TRIALS); 
 }
 
+int closeAllOrders()
+{  
+   for(int i = OrdersTotal() - 1; i >= 0; --i) {
+      if(!OrderSelect(i, SELECT_BY_POS, MODE_TRADES)) {
+         Comment("Emir secilemedi... Hata kodu : ", GetLastError());
+         continue;
+      }//end if order select
+   
+      int optype = OrderType();
+      int k = 0;
+      double close_price = 0.0;
+      for(k = 0; k < MAX_NUM_TRIALS; ++k) {
+         if(optype == OP_BUY)
+   	      close_price = MarketInfo(OrderSymbol(), MODE_BID);
+         else
+   	      close_price = MarketInfo(OrderSymbol(), MODE_ASK);
+         if(OrderClose(OrderTicket(), OrderLots(), close_price, 10))
+   	      break;
+         RefreshRates();
+      }// end for trial
+      if(k == MAX_NUM_TRIALS) {
+         Comment(OrderTicket(), " No'lu emir kapatilamadi close price", close_price, " .... Hata kodu : ", GetLastError());
+         return -1;
+      }//end if max trial     
+   }// end order total for
+   return 0;
+}
+
 /*!
    \return 1: sell, -1: buy, 0: do nothing
 */
@@ -74,14 +104,14 @@ int checkStochasticSignal()
    
    for(i_sig = 0; i_sig < SIZE_SIGNALS; i_sig++){
       i_history = 1 + i_sig;
-      main_signals[i_sig] = iStochastic(Symbol(), 0, k_period, d_period, slowing, MODE_SMA, 1, MODE_MAIN, i_history); 
-      mode_signals[i_sig] = iStochastic(Symbol(), 0, k_period, d_period, slowing, MODE_SMA, 1, MODE_SIGNAL, i_history);
+      main_signals[i_sig] = iStochastic(Symbol(), 0, k_period, d_period, slowing, averaging_method, 1, MODE_MAIN, i_history); 
+      mode_signals[i_sig] = iStochastic(Symbol(), 0, k_period, d_period, slowing, averaging_method, 1, MODE_SIGNAL, i_history);
       smaller[i_sig] = main_signals[i_sig] < mode_signals[i_sig];
       sum += smaller[i_sig];
    }//end for i_sig
    
-   main_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, MODE_SMA, 1, MODE_MAIN, 0);
-   mode_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, MODE_SMA, 1, MODE_SIGNAL, 0);
+   main_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, averaging_method, 1, MODE_MAIN, 0);
+   mode_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, averaging_method, 1, MODE_SIGNAL, 0);
    //Comment("Main signal = ", main_signal, ", Mode signal = ", mode_signal);
       
    com = "Main signal = " + DoubleToString(main_signal) + ", Mode signal = " + DoubleToString(mode_signal) + "\n" + 
@@ -140,6 +170,9 @@ void OnTick()
    market_trend = checkStochasticSignal();
    
    if(market_trend != previous_market_trend && market_trend == 1){
+      if(one_order == TRUE){
+         if(closeAllOrders()) Comment("Cannot close all orders");
+      }//end if one_order
       if(openOrder(OP_SELL, lot_to_open, stop_loss_pips, take_profit_pips)){
          Comment(Symbol(), " Paritesinde satis emiri acilamadi.");
       }else{
@@ -147,6 +180,9 @@ void OnTick()
          previous_market_trend = market_trend;  
       }
    }else if(market_trend != previous_market_trend && market_trend == -1){
+      if(one_order == TRUE){
+         if(closeAllOrders()) Comment("Cannot close all orders");
+      }//end if one_order
       if(openOrder(OP_BUY, lot_to_open, stop_loss_pips, take_profit_pips)){
          Comment(Symbol(), " Paritesinde alis emiri acilamadi.");
       }else{
