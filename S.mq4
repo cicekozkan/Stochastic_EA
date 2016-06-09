@@ -65,29 +65,34 @@ int openOrder(int op_type, double lot, double sl_pips, double tp_pips)
 
 int closeAllOrders()
 {  
-   for(int i = OrdersTotal() - 1; i >= 0; --i) {
-      if(!OrderSelect(i, SELECT_BY_POS, MODE_TRADES)) {
-         Comment("Emir secilemedi... Hata kodu : ", GetLastError());
-         continue;
-      }//end if order select
-   
-      int optype = OrderType();
-      int k = 0;
-      double close_price = 0.0;
-      for(k = 0; k < MAX_NUM_TRIALS; ++k) {
-         if(optype == OP_BUY)
-   	      close_price = MarketInfo(OrderSymbol(), MODE_BID);
-         else
-   	      close_price = MarketInfo(OrderSymbol(), MODE_ASK);
-         if(OrderClose(OrderTicket(), OrderLots(), close_price, 10))
-   	      break;
-         RefreshRates();
-      }// end for trial
-      if(k == MAX_NUM_TRIALS) {
-         Comment(OrderTicket(), " No'lu emir kapatilamadi close price", close_price, " .... Hata kodu : ", GetLastError());
-         return -1;
-      }//end if max trial     
-   }// end order total for
+   int total_orders = 0;
+   total_orders = OrdersTotal();
+   string current_sym = Symbol();
+   if(total_orders != 0){
+      for(int i = total_orders - 1; i >= 0; --i) {
+         if(!OrderSelect(i, SELECT_BY_POS, MODE_TRADES)) {
+            Comment("Emir secilemedi... Hata kodu : ", GetLastError());
+            continue;
+         }//end if order select
+         if(OrderSymbol() != current_sym)   continue;
+         int optype = OrderType();
+         int k = 0;
+         double close_price = 0.0;
+         for(k = 0; k < MAX_NUM_TRIALS; ++k) {
+            if(optype == OP_BUY)
+      	      close_price = MarketInfo(OrderSymbol(), MODE_BID);
+            else
+      	      close_price = MarketInfo(OrderSymbol(), MODE_ASK);
+            if(OrderClose(OrderTicket(), OrderLots(), close_price, 10))
+      	      break;
+            RefreshRates();
+         }// end for trial
+         if(k == MAX_NUM_TRIALS) {
+            Comment(OrderTicket(), " No'lu emir kapatilamadi close price", close_price, " .... Hata kodu : ", GetLastError());
+            return -1;
+         }//end if max trial     
+      }// end order total for
+   }//end if total_orders != 0
    return 0;
 }
 
@@ -146,7 +151,7 @@ int OnInit()
 {
   //if(openOrder(OP_BUY, lot_to_open, stop_loss_pips, take_profit_pips))  Comment(Symbol(), " Paritesinde emir acilamadi.");
   lfh = FileOpen("S_log.csv", FILE_WRITE | FILE_CSV);
-  if(lfh != INVALID_HANDLE)   FileWrite(lfh, "Date", "Time", "Parity", "Position", "Open/Close");
+  if(lfh != INVALID_HANDLE)   FileWrite(lfh, "Date", "Time", "Parity", "Position", "Open/Close");  
   return(INIT_SUCCEEDED);
 }
 //+------------------------------------------------------------------+
@@ -169,24 +174,24 @@ void OnTick()
    
    market_trend = checkStochasticSignal();
    
-   if(market_trend != previous_market_trend && market_trend == 1){
+   if((market_trend != previous_market_trend) && (market_trend == 1)){
       if(one_order == TRUE){
          if(closeAllOrders()) Comment("Cannot close all orders");
          else write_log(OP_BUY, "Close");
       }//end if one_order
       if(openOrder(OP_SELL, lot_to_open, stop_loss_pips, take_profit_pips)){
-         Comment(Symbol(), " Paritesinde satis emiri acilamadi.");
+         //Comment(Symbol(), " Paritesinde satis emiri acilamadi.");
       }else{
          write_log(OP_SELL, "Open"); 
          previous_market_trend = market_trend;  
       }
-   }else if(market_trend != previous_market_trend && market_trend == -1){
+   }else if((market_trend != previous_market_trend) && (market_trend == -1)){
       if(one_order == TRUE){
          if(closeAllOrders()) Comment("Cannot close all orders");
          else write_log(OP_SELL, "Close");
       }//end if one_order
       if(openOrder(OP_BUY, lot_to_open, stop_loss_pips, take_profit_pips)){
-         Comment(Symbol(), " Paritesinde alis emiri acilamadi.");
+         //Comment(Symbol(), " Paritesinde alis emiri acilamadi.");
       }else{
          write_log(OP_BUY, "Open");
          previous_market_trend = market_trend;
