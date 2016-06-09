@@ -9,6 +9,7 @@
 #property strict
 
 #define MAX_NUM_TRIALS 5
+#define SIZE_SIGNALS 3
 
 extern double lot_to_open = 1.0;  ///< Lot to open
 int slippage = 10; ///< Maximum price slippage for buy or sell orders
@@ -22,6 +23,7 @@ int k_period = 5;
 int d_period = 3;
 int slowing = 3;
 int lfh = INVALID_HANDLE; ///< Log file handle
+int previous_market_trend = 0;
 
 //+------------------------------------------------------------------+
 //| Global functions                                                 |
@@ -58,12 +60,62 @@ int openOrder(int op_type, double lot, double sl_pips, double tp_pips)
    return !(i_try < MAX_NUM_TRIALS); 
 }
 
+/*!
+   \return 1: sell, -1: buy, 0: do nothing
+*/
+int checkStochasticSignal()
+{
+   double main_signals[SIZE_SIGNALS] = {0.0}, mode_signals[SIZE_SIGNALS] = {0.0};
+   int i_sig = 0, i_history = 0;
+   int smaller[SIZE_SIGNALS] = {0};
+   int sum = 0;
+   string com;
+   
+   for(i_sig = 0; i_sig < SIZE_SIGNALS; i_sig++){
+      i_history = 1 + i_sig;
+      main_signals[i_sig] = iStochastic(Symbol(), 0, k_period, d_period, slowing, MODE_SMA, 1, MODE_MAIN, i_history); 
+      mode_signals[i_sig] = iStochastic(Symbol(), 0, k_period, d_period, slowing, MODE_SMA, 1, MODE_SIGNAL, i_history);
+      smaller[i_sig] = main_signals[i_sig] < mode_signals[i_sig];
+      sum += smaller[i_sig];
+   }//end for i_sig
+   
+   main_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, MODE_SMA, 1, MODE_MAIN, 0);
+   mode_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, MODE_SMA, 1, MODE_SIGNAL, 0);
+   //Comment("Main signal = ", main_signal, ", Mode signal = ", mode_signal);
+      
+   com = "Main signal = " + DoubleToString(main_signal) + ", Mode signal = " + DoubleToString(mode_signal) + "\n" + 
+         "main[0] = " + DoubleToString(main_signals[0]) + ", main[-1] = " + DoubleToString(main_signals[1]) + ", main[-2] = " + DoubleToString(main_signals[2]) + "\n" + 
+         "mode[0] = " + DoubleToString(mode_signals[0]) + ", mode[-1] = " + DoubleToString(mode_signals[1]) + ", mode[-2] = " + DoubleToString(mode_signals[2]) + "\n" +
+         "smaller[0] = " + DoubleToString(smaller[0]) + ", smaller[-1] = " + DoubleToString(smaller[1]) + ", smaller[-2] = " + DoubleToString(smaller[2]);
+   Comment(com);
+   
+   // search for a change in direction
+   if(sum != 0 || sum != SIZE_SIGNALS){
+      // find out where market goes
+      if(smaller[0] == 1 && smaller[SIZE_SIGNALS-1] == 0)  return 1; // sell
+      else if (smaller[0] == 0 && smaller[SIZE_SIGNALS-1] == 1)  return -1;  //buy
+   }
+   return 0; // do nothing
+}
+
+void write_log(int op_type)
+{
+   MqlDateTime str; 
+   TimeToStruct(TimeCurrent(), str);
+   string date = IntegerToString(str.year) + "/" + IntegerToString(str.mon) + "/" + IntegerToString(str.day);
+   string time = IntegerToString(str.hour) + ":" + IntegerToString(str.min) + ":" + IntegerToString(str.sec);
+   
+   if(lfh != INVALID_HANDLE)  FileWrite(lfh, date, time, Symbol(), op_type==OP_BUY?"BUY":"SELL");
+}
+
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
 int OnInit()
 {
-  if(openOrder(OP_BUY, lot_to_open, stop_loss_pips, take_profit_pips))  Comment(Symbol(), " Paritesinde emir acilamadi.");
+  //if(openOrder(OP_BUY, lot_to_open, stop_loss_pips, take_profit_pips))  Comment(Symbol(), " Paritesinde emir acilamadi.");
+  lfh = FileOpen("S_log.csv", FILE_WRITE | FILE_CSV);
+  if(lfh != INVALID_HANDLE)   FileWrite(lfh, "Date", "Time", "Parity", "Position");
   return(INIT_SUCCEEDED);
 }
 //+------------------------------------------------------------------+
@@ -71,7 +123,7 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
 {
-
+   if(lfh != INVALID_HANDLE)  FileClose(lfh);
    
 }
 //+------------------------------------------------------------------+
@@ -79,13 +131,28 @@ void OnDeinit(const int reason)
 //+------------------------------------------------------------------+
 void OnTick()
 {
-  main_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, MODE_SMA, 1, MODE_MAIN, 0);
-  mode_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, MODE_SMA, 1, MODE_SIGNAL, 0);
-  Comment("Main signal = ", main_signal, ", Mode signal = ", mode_signal);
-  
-  
-  
-  
-  
+   int market_trend = 0;
+   //main_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, MODE_SMA, 1, MODE_MAIN, 0);
+   //mode_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, MODE_SMA, 1, MODE_SIGNAL, 0);
+   //Comment("Main signal = ", main_signal, ", Mode signal = ", mode_signal); 
+   
+   market_trend = checkStochasticSignal();
+   
+   if(market_trend != previous_market_trend && market_trend == 1){
+      if(openOrder(OP_SELL, lot_to_open, stop_loss_pips, take_profit_pips)){
+         Comment(Symbol(), " Paritesinde satis emiri acilamadi.");
+      }else{
+         write_log(OP_SELL); 
+         previous_market_trend = market_trend;  
+      }
+   }else if(market_trend != previous_market_trend && market_trend == -1){
+      if(openOrder(OP_BUY, lot_to_open, stop_loss_pips, take_profit_pips)){
+         Comment(Symbol(), " Paritesinde alis emiri acilamadi.");
+      }else{
+         write_log(OP_BUY);
+         previous_market_trend = market_trend;
+      }
+   }//enf if market_trend  
+   
 }
 //+------------------------------------------------------------------+
