@@ -123,7 +123,7 @@ int checkStochasticSignal()
          "main[0] = " + DoubleToString(main_signals[0]) + ", main[-1] = " + DoubleToString(main_signals[1]) + ", main[-2] = " + DoubleToString(main_signals[2]) + "\n" + 
          "mode[0] = " + DoubleToString(mode_signals[0]) + ", mode[-1] = " + DoubleToString(mode_signals[1]) + ", mode[-2] = " + DoubleToString(mode_signals[2]) + "\n" +
          "smaller[0] = " + DoubleToString(smaller[0]) + ", smaller[-1] = " + DoubleToString(smaller[1]) + ", smaller[-2] = " + DoubleToString(smaller[2]);
-   Comment(com);
+   //Comment(com);
    
    // search for a change in direction
    if(sum != 0 || sum != SIZE_SIGNALS){
