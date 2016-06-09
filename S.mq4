@@ -11,17 +11,18 @@
 #define MAX_NUM_TRIALS 5
 #define SIZE_SIGNALS 3
 
-extern double lot_to_open = 1.0;  ///< Lot to open
+extern double lot_to_open = 1.0;  // Lot to open
 int slippage = 10; ///< Maximum price slippage for buy or sell orders
-extern double stop_loss_pips = 4.0; ///< Stop loss pips
-extern double take_profit_pips = 6.0; ///< Take profit pips
+extern double stop_loss_pips = 4.0; // Stop loss pips
+extern double take_profit_pips = 6.0; // Take profit pips
+extern int k_period = 5; // %K
+extern int d_period = 3; // %D
+extern int slowing = 3; // Slowing
 int num_orders_to_open = 1;
 int num_open_orders = 0;
 double main_signal = 0;
 double mode_signal = 0;
-int k_period = 5;
-int d_period = 3;
-int slowing = 3;
+
 int lfh = INVALID_HANDLE; ///< Log file handle
 int previous_market_trend = 0;
 
