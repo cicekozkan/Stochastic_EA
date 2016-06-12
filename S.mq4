@@ -11,15 +11,21 @@
 #define MAX_NUM_TRIALS 5
 #define SIZE_SIGNALS 3
 
+enum price_field{
+   low_high = 0,
+   close_close = 1
+};
+
 extern double lot_to_open = 1.0;  // Lot to open
 int slippage = 10; ///< Maximum price slippage for buy or sell orders
 extern double stop_loss_pips = 4.0; // Stop loss pips
 extern double take_profit_pips = 6.0; // Take profit pips
+extern bool one_order = FALSE; // Open only one order
 extern int k_period = 5; // %K
 extern int d_period = 3; // %D
 extern int slowing = 3; // Slowing
-extern bool one_order = FALSE; // Open only one order
 extern ENUM_MA_METHOD averaging_method = MODE_SMA; // SO averaging method
+extern price_field price_field_selected = low_high; // SO price field
 int num_orders_to_open = 1;
 int num_open_orders = 0;
 double main_signal = 0;
@@ -112,11 +118,12 @@ int checkStochasticSignal()
    TimeToStruct(TimeCurrent(), str);
    string date = IntegerToString(str.year) + "/" + IntegerToString(str.mon) + "/" + IntegerToString(str.day);
    string time = IntegerToString(str.hour) + ":" + IntegerToString(str.min) + ":" + IntegerToString(str.sec);
+   int price_fields[2] = {0, 1};
    
    for(i_sig = 0; i_sig < SIZE_SIGNALS; i_sig++){
       i_history = 1 + i_sig;
-      main_signals[i_sig] = iStochastic(Symbol(), 0, k_period, d_period, slowing, averaging_method, 1, MODE_MAIN, i_history); 
-      mode_signals[i_sig] = iStochastic(Symbol(), 0, k_period, d_period, slowing, averaging_method, 1, MODE_SIGNAL, i_history);
+      main_signals[i_sig] = iStochastic(Symbol(), 0, k_period, d_period, slowing, averaging_method, price_fields[price_field_selected], MODE_MAIN, i_history); 
+      mode_signals[i_sig] = iStochastic(Symbol(), 0, k_period, d_period, slowing, averaging_method, price_fields[price_field_selected], MODE_SIGNAL, i_history);
       smaller[i_sig] = main_signals[i_sig] < mode_signals[i_sig];
       sum += smaller[i_sig];
    }//end for i_sig
