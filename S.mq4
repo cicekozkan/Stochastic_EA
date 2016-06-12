@@ -26,6 +26,7 @@ double main_signal = 0;
 double mode_signal = 0;
 
 int lfh = INVALID_HANDLE; ///< Log file handle
+int alfh = INVALID_HANDLE; ///< Actions log file
 int previous_market_trend = 0;
 
 //+------------------------------------------------------------------+
@@ -58,7 +59,7 @@ int openOrder(int op_type, double lot, double sl_pips, double tp_pips)
       if (ticket != -1) break;
    }//end max trials
    if (i_try == MAX_NUM_TRIALS){
-      Comment(sym, " Paritesinde emir acilamadi. Hata kodu = ", GetLastError());
+      Comment(sym, " Paritesinde emir acilamadi. Hata kodu = ", GetLastError()); 
    }
    return !(i_try < MAX_NUM_TRIALS); 
 }
@@ -106,6 +107,11 @@ int checkStochasticSignal()
    int smaller[SIZE_SIGNALS] = {0};
    int sum = 0;
    string com;
+   int trend = 0; // do nothing
+   MqlDateTime str; 
+   TimeToStruct(TimeCurrent(), str);
+   string date = IntegerToString(str.year) + "/" + IntegerToString(str.mon) + "/" + IntegerToString(str.day);
+   string time = IntegerToString(str.hour) + ":" + IntegerToString(str.min) + ":" + IntegerToString(str.sec);
    
    for(i_sig = 0; i_sig < SIZE_SIGNALS; i_sig++){
       i_history = 1 + i_sig;
@@ -128,10 +134,17 @@ int checkStochasticSignal()
    // search for a change in direction
    if(sum != 0 || sum != SIZE_SIGNALS){
       // find out where market goes
-      if(smaller[0] == 1 && smaller[SIZE_SIGNALS-1] == 0)  return 1; // sell
-      else if (smaller[0] == 0 && smaller[SIZE_SIGNALS-1] == 1)  return -1;  //buy
+      if(smaller[0] == 1 && smaller[SIZE_SIGNALS-1] == 0){
+        //return 1; // sell
+        FileWrite(alfh, "Market has gone in sell direction on ", date," ", time);
+        trend = 1; // sell
+      }else if (smaller[0] == 0 && smaller[SIZE_SIGNALS-1] == 1){
+        //return -1;  //buy
+        FileWrite(alfh, "Market has gone in buy direction on ", date," ", time);
+        trend = -1; // but
+      }
    }
-   return 0; // do nothing
+   return trend; 
 }
 
 void write_log(int op_type, string open_close)
@@ -152,6 +165,10 @@ int OnInit()
   //if(openOrder(OP_BUY, lot_to_open, stop_loss_pips, take_profit_pips))  Comment(Symbol(), " Paritesinde emir acilamadi.");
   lfh = FileOpen("S_log.csv", FILE_WRITE | FILE_CSV);
   if(lfh != INVALID_HANDLE)   FileWrite(lfh, "Date", "Time", "Parity", "Position", "Open/Close");  
+  alfh = FileOpen("S_log_activity.txt", FILE_WRITE | FILE_TXT);
+  if(alfh != INVALID_HANDLE)  FileWrite(alfh, "lot to open = ", DoubleToString(lot_to_open), ", stop loss pips = ", DoubleToString(stop_loss_pips), "\n",
+                                              "take profit pips = ", DoubleToString(take_profit_pips), ", %K = ", IntegerToString(k_period), "\n",
+                                              "%D = ", IntegerToString(d_period), ", slowing = ", IntegerToString(slowing));
   return(INIT_SUCCEEDED);
 }
 //+------------------------------------------------------------------+
@@ -160,6 +177,7 @@ int OnInit()
 void OnDeinit(const int reason)
 {
    if(lfh != INVALID_HANDLE)  FileClose(lfh);
+   if(alfh != INVALID_HANDLE)  FileClose(alfh);
    
 }
 //+------------------------------------------------------------------+
