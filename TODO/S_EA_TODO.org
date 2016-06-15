@@ -1,0 +1,3 @@
+* TODO Log open price, close price, profit
+* TODO Fix SO close/close, low/high selection
+* TODO Create dedicated files for each parity
