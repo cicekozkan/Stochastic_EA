@@ -17,9 +17,9 @@ enum price_field{
 };
 
 extern double lot_to_open = 1.0;  // Lot to open
-int slippage = 10; ///< Maximum price slippage for buy or sell orders
-extern double stop_loss_pips = 4.0; // Stop loss pips
-extern double take_profit_pips = 6.0; // Take profit pips
+extern int slippage = 9; ///< Maximum price slippage for buy or sell orders
+extern int stop_loss_pips = 4; // Stop loss pips
+extern int take_profit_pips = 6; // Take profit pips
 extern bool one_order = FALSE; // Open only one order
 extern int k_period = 5; // %K
 extern int d_period = 3; // %D
@@ -51,14 +51,27 @@ int openOrder(int op_type, double lot, double sl_pips, double tp_pips)
    int i_try = 0;
    
    if(op_type == OP_SELL){
-      price = MarketInfo(sym, MODE_BID);	
-      if(sl_pips != 0.0)   sl = price + sl_pips * point;
-      if(tp_pips != 0.0)   tp = price - tp_pips * point;
+      price = NormalizeDouble(MarketInfo(sym, MODE_BID), Digits);	
+      if(sl_pips != 0){
+         sl = price + sl_pips * point;
+         sl = NormalizeDouble(sl, Digits);
+      }
+      if(tp_pips != 0){
+         tp = price - tp_pips * point;
+         tp = NormalizeDouble(tp, Digits);
+      }
    }else if (op_type == OP_BUY){
-      price = MarketInfo(sym, MODE_ASK);
-      if(sl_pips != 0.0)   sl = price - sl_pips * point;
-      if(tp_pips != 0.0)   tp = price + tp_pips * point;
+      price = NormalizeDouble(MarketInfo(sym, MODE_ASK), Digits);
+      if(sl_pips != 0){
+         sl = price - sl_pips * point;
+         sl = NormalizeDouble(sl, Digits);
+      }
+      if(tp_pips != 0){
+         tp = price + tp_pips * point;
+         tp = NormalizeDouble(tp, Digits);
+      }
    }
+   FileWrite(alfh, "Price = ", price, ", Stop loss = ", sl, ", Take profit = ", tp);
    
    for (i_try = 0; i_try < MAX_NUM_TRIALS; i_try++){
       ticket = OrderSend(sym, op_type, lot, price, slippage, sl, tp);
@@ -114,10 +127,6 @@ int checkStochasticSignal()
    int sum = 0;
    string com;
    int trend = 0; // do nothing
-   MqlDateTime str; 
-   TimeToStruct(TimeCurrent(), str);
-   string date = IntegerToString(str.year) + "/" + IntegerToString(str.mon) + "/" + IntegerToString(str.day);
-   string time = IntegerToString(str.hour) + ":" + IntegerToString(str.min) + ":" + IntegerToString(str.sec);
    int price_fields[2] = {0, 1};
    
    for(i_sig = 0; i_sig < SIZE_SIGNALS; i_sig++){
@@ -136,19 +145,15 @@ int checkStochasticSignal()
          "main[0] = " + DoubleToString(main_signals[0]) + ", main[-1] = " + DoubleToString(main_signals[1]) + ", main[-2] = " + DoubleToString(main_signals[2]) + "\n" + 
          "mode[0] = " + DoubleToString(mode_signals[0]) + ", mode[-1] = " + DoubleToString(mode_signals[1]) + ", mode[-2] = " + DoubleToString(mode_signals[2]) + "\n" +
          "smaller[0] = " + DoubleToString(smaller[0]) + ", smaller[-1] = " + DoubleToString(smaller[1]) + ", smaller[-2] = " + DoubleToString(smaller[2]);
-   //Comment(com);
+   Comment(com);
    
    // search for a change in direction
    if(sum != 0 || sum != SIZE_SIGNALS){
       // find out where market goes
       if(smaller[0] == 1 && smaller[SIZE_SIGNALS-1] == 0){
-        //return 1; // sell
-        FileWrite(alfh, "Market has gone in sell direction on ", date," ", time);
         trend = 1; // sell
       }else if (smaller[0] == 0 && smaller[SIZE_SIGNALS-1] == 1){
-        //return -1;  //buy
-        FileWrite(alfh, "Market has gone in buy direction on ", date," ", time);
-        trend = -1; // but
+        trend = -1; // buy
       }
    }
    return trend; 
@@ -162,6 +167,88 @@ void write_log(int op_type, string open_close)
    string time = IntegerToString(str.hour) + ":" + IntegerToString(str.min) + ":" + IntegerToString(str.sec);
    
    if(lfh != INVALID_HANDLE)  FileWrite(lfh, date, time, Symbol(), op_type==OP_BUY?"BUY":"SELL", open_close);
+}
+
+void WriteActivity(string msg)
+{
+   if(alfh == INVALID_HANDLE) return;
+   MqlDateTime str; 
+   TimeToStruct(TimeCurrent(), str);
+   string date = IntegerToString(str.year) + "/" + IntegerToString(str.mon) + "/" + IntegerToString(str.day);
+   string time = IntegerToString(str.hour) + ":" + IntegerToString(str.min) + ":" + IntegerToString(str.sec);
+   FileWrite(alfh, date, " ", time, " ", msg);
+}
+
+void TracePositions()
+{
+   int total_orders = 0;
+   double profit = 0.0;
+   total_orders = OrdersTotal();
+   string current_sym = Symbol();
+   if(total_orders != 0){
+      for(int i = total_orders - 1; i >= 0; --i) {
+         if(!OrderSelect(i, SELECT_BY_POS, MODE_TRADES)) {
+            Comment("Emir secilemedi... Hata kodu : ", GetLastError());
+            WriteActivity("ERROR: Emir secilemedi... Hata kodu = " + IntegerToString(GetLastError()));
+            continue;
+         }//end if order select
+         if(OrderSymbol() != current_sym)   continue;
+
+         int optype = OrderType();
+         double open_price = OrderOpenPrice();
+         double target_stop, target_profit;
+         double bid, ask;
+         if(optype == OP_BUY) {
+            target_stop = NormalizeDouble((open_price - stop_loss_pips * 10. * Point), Digits);
+            target_profit = NormalizeDouble((open_price + take_profit_pips * 10. * Point), Digits);
+            bid = NormalizeDouble(Bid, Digits);
+            ask = NormalizeDouble(Ask, Digits);
+            //if(bid > target_profit || ask < target_stop){
+            if(bid >= target_profit || bid <= target_stop){
+               if(CloseOrder()){
+                  WriteActivity("ERROR: " + IntegerToString(OrderTicket()) + " No'lu emir kapatilamadi" +  
+                                 " .... Hata kodu = " + IntegerToString(GetLastError()));
+               }//end if CloseOrder
+            }//end if Bid Ask
+         }else{
+            target_stop = NormalizeDouble((open_price + stop_loss_pips * 10. * Point), Digits);
+            target_profit = NormalizeDouble((open_price - take_profit_pips * 10. * Point), Digits);
+            bid = NormalizeDouble(Bid, Digits);
+            ask = NormalizeDouble(Ask, Digits);
+            //if(ask < target_profit || bid > target_stop){
+            if(ask <= target_profit || ask >= target_stop){
+               if(CloseOrder()){
+                  WriteActivity("ERROR: " + IntegerToString(OrderTicket()) + " No'lu emir kapatilamadi" + 
+                                 " .... Hata kodu = " + IntegerToString(GetLastError()));
+               }//end if CloseOrder
+            }//end if Bid Ask
+         }//end if else optype  
+         WriteActivity("Target stop = " + DoubleToString(target_stop) + ", Target profit = " + DoubleToString(target_profit) + 
+               ", Bid = " + DoubleToString(bid) + ", Ask = " + DoubleToString(ask));  
+      }//end for total_orders          
+   }//end if total_orders != 0
+}
+
+/*! Close the order selected with OrderSelect function*/
+int CloseOrder()
+{
+   int optype = OrderType();
+   int k = 0;
+   double close_price = 0.0;
+   for(k = 0; k < MAX_NUM_TRIALS; ++k) {
+      if(optype == OP_BUY)
+         close_price = MarketInfo(OrderSymbol(), MODE_BID);
+      else
+         close_price = MarketInfo(OrderSymbol(), MODE_ASK);
+      if(OrderClose(OrderTicket(), OrderLots(), close_price, 10))
+         break;
+      RefreshRates();
+   }// end for trial
+   if(k == MAX_NUM_TRIALS) {
+      //Comment(OrderTicket(), " No'lu emir kapatilamadi close price = ", close_price, " .... Hata kodu : ", GetLastError());
+      return -1;
+   }//end if max trial     
+   return 0;
 }
 
 //+------------------------------------------------------------------+
@@ -197,25 +284,31 @@ void OnTick()
    //mode_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, MODE_SMA, 1, MODE_SIGNAL, 0);
    //Comment("Main signal = ", main_signal, ", Mode signal = ", mode_signal); 
    
+   TracePositions();
    market_trend = checkStochasticSignal();
    
    if((market_trend != previous_market_trend) && (market_trend == 1)){
+      WriteActivity("Market has gone in sell direction");
       if(one_order == TRUE){
          if(closeAllOrders()) Comment("Cannot close all orders");
          else write_log(OP_BUY, "Close");
-      }//end if one_order
-      if(openOrder(OP_SELL, lot_to_open, stop_loss_pips, take_profit_pips)){
+      }//end if one_order              
+
+      //if(openOrder(OP_SELL, lot_to_open, stop_loss_pips, take_profit_pips)){
+      if(openOrder(OP_SELL, lot_to_open, 0.0, 0.0)){
          //Comment(Symbol(), " Paritesinde satis emiri acilamadi.");
       }else{
          write_log(OP_SELL, "Open"); 
          previous_market_trend = market_trend;  
       }
    }else if((market_trend != previous_market_trend) && (market_trend == -1)){
+      WriteActivity("Market has gone in buy direction");
       if(one_order == TRUE){
          if(closeAllOrders()) Comment("Cannot close all orders");
          else write_log(OP_SELL, "Close");
       }//end if one_order
-      if(openOrder(OP_BUY, lot_to_open, stop_loss_pips, take_profit_pips)){
+      //if(openOrder(OP_BUY, lot_to_open, stop_loss_pips, take_profit_pips)){
+      if(openOrder(OP_BUY, lot_to_open, 0.0, 0.0)){
          //Comment(Symbol(), " Paritesinde alis emiri acilamadi.");
       }else{
          write_log(OP_BUY, "Open");
