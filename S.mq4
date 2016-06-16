@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Ozkan CICEK"
 #property link      "https://www.mql5.com"
-#property version   "1.0.0.4"
+#property version   "1.0.0.5"
 #property strict
 
 #define MAX_NUM_TRIALS 5
@@ -134,8 +134,8 @@ int checkStochasticSignal()
       sum += smaller[i_sig];
    }//end for i_sig
    
-   main_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, averaging_method, 1, MODE_MAIN, 0);
-   mode_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, averaging_method, 1, MODE_SIGNAL, 0);
+   main_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, averaging_method, price_fields[price_field_selected], MODE_MAIN, 0);
+   mode_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, averaging_method, price_fields[price_field_selected], MODE_SIGNAL, 0);
    //Comment("Main signal = ", main_signal, ", Mode signal = ", mode_signal);
       
    com = "Main signal = " + DoubleToString(main_signal) + ", Mode signal = " + DoubleToString(mode_signal) + "\n" + 
@@ -269,7 +269,8 @@ int OnInit()
   alfh = FileOpen(fn, FILE_WRITE | FILE_TXT);
   if(alfh != INVALID_HANDLE)  FileWrite(alfh, "lot to open = ", DoubleToString(lot_to_open), ", stop loss pips = ", DoubleToString(stop_loss_pips), "\n",
                                               "take profit pips = ", DoubleToString(take_profit_pips), ", %K = ", IntegerToString(k_period), "\n",
-                                              "%D = ", IntegerToString(d_period), ", slowing = ", IntegerToString(slowing));
+                                              "%D = ", IntegerToString(d_period), ", slowing = ", IntegerToString(slowing), 
+                                              "Price Field = ", price_field_selected==low_high?"Low/High":"Close/Close");
   return(INIT_SUCCEEDED);
 }
 //+------------------------------------------------------------------+
