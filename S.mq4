@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Ozkan CICEK"
 #property link      "https://www.mql5.com"
-#property version   "1.0.0.3"
+#property version   "1.0.0.4"
 #property strict
 
 #define MAX_NUM_TRIALS 5
@@ -71,7 +71,8 @@ int openOrder(int op_type, double lot, double sl_pips, double tp_pips)
          tp = NormalizeDouble(tp, Digits);
       }
    }
-   FileWrite(alfh, "Price = ", price, ", Stop loss = ", sl, ", Take profit = ", tp);
+   //FileWrite(alfh, "Price = ", price, ", Stop loss = ", sl, ", Take profit = ", tp);
+   WriteActivity("Price = " + DoubleToString(price) + ", Stop loss = " + DoubleToString(sl) + ", Take profit = " + DoubleToString(tp));
    
    for (i_try = 0; i_try < MAX_NUM_TRIALS; i_try++){
       ticket = OrderSend(sym, op_type, lot, price, slippage, sl, tp);
@@ -79,6 +80,12 @@ int openOrder(int op_type, double lot, double sl_pips, double tp_pips)
    }//end max trials
    if (i_try == MAX_NUM_TRIALS){
       Comment(sym, " Paritesinde emir acilamadi. Hata kodu = ", GetLastError()); 
+   }else{
+      if(!OrderSelect(ticket, SELECT_BY_TICKET, MODE_TRADES)) {
+         Comment("Emir secilemedi... Hata kodu : ", GetLastError());
+         WriteActivity("ERROR: Emir secilemedi... Hata kodu = " + IntegerToString(GetLastError()));
+      }//end if order select
+      write_log(ticket, OrderType(), "Open", OrderOpenPrice(), -9999, -9999);
    }
    return !(i_try < MAX_NUM_TRIALS); 
 }
@@ -94,23 +101,13 @@ int closeAllOrders()
             Comment("Emir secilemedi... Hata kodu : ", GetLastError());
             continue;
          }//end if order select
-         if(OrderSymbol() != current_sym)   continue;
-         int optype = OrderType();
-         int k = 0;
-         double close_price = 0.0;
-         for(k = 0; k < MAX_NUM_TRIALS; ++k) {
-            if(optype == OP_BUY)
-      	      close_price = MarketInfo(OrderSymbol(), MODE_BID);
-            else
-      	      close_price = MarketInfo(OrderSymbol(), MODE_ASK);
-            if(OrderClose(OrderTicket(), OrderLots(), close_price, 10))
-      	      break;
-            RefreshRates();
-         }// end for trial
-         if(k == MAX_NUM_TRIALS) {
-            Comment(OrderTicket(), " No'lu emir kapatilamadi close price", close_price, " .... Hata kodu : ", GetLastError());
-            return -1;
-         }//end if max trial     
+         if(OrderSymbol() != current_sym)   continue;         
+         if(CloseOrder()){
+            WriteActivity("ERROR: " + IntegerToString(OrderTicket()) + " No'lu emir kapatilamadi" + 
+                           " .... Hata kodu = " + IntegerToString(GetLastError()));
+         }else{
+            write_log(OrderTicket(), OrderType(), "Close", NormalizeDouble(OrderOpenPrice(), Digits), NormalizeDouble(OrderClosePrice(), Digits), OrderProfit());
+         }//end if else CloseOrder  
       }// end order total for
    }//end if total_orders != 0
    return 0;
@@ -159,7 +156,7 @@ int checkStochasticSignal()
    return trend; 
 }
 
-void write_log(int op_type, string open_close)
+void write_log(int ticket, int op_type, string open_close, double open_price, double close_price, double profit)
 {
    MqlDateTime str; 
    TimeToStruct(TimeCurrent(), str);
@@ -168,8 +165,8 @@ void write_log(int op_type, string open_close)
    
    //"Date", "Time", "TicketNumber", "Position", "Open/Close", "OpenPrice", "ClosePrice", "Profit"
    
-   if(lfh != INVALID_HANDLE)  FileWrite(lfh, date, time, OrderTicket(), op_type==OP_BUY?"BUY":"SELL", open_close, OrderOpenPrice(), 
-                                       open_close=="Open"?-9999:OrderClosePrice(), open_close=="Open"?-9999:OrderProfit());
+   if(lfh != INVALID_HANDLE)  FileWrite(lfh, date, time, ticket, op_type==OP_BUY?"BUY":"SELL", open_close, open_price, 
+                                       close_price, profit);
 }
 
 void WriteActivity(string msg)
@@ -188,6 +185,7 @@ void TracePositions()
    double profit = 0.0;
    total_orders = OrdersTotal();
    string current_sym = Symbol();
+   
    if(total_orders != 0){
       for(int i = total_orders - 1; i >= 0; --i) {
          if(!OrderSelect(i, SELECT_BY_POS, MODE_TRADES)) {
@@ -196,7 +194,7 @@ void TracePositions()
             continue;
          }//end if order select
          if(OrderSymbol() != current_sym)   continue;
-
+         int ticket = OrderTicket();
          int optype = OrderType();
          double open_price = OrderOpenPrice();
          double target_stop, target_profit;
@@ -209,10 +207,10 @@ void TracePositions()
             //if(bid > target_profit || ask < target_stop){
             if(bid >= target_profit || bid <= target_stop){
                if(CloseOrder()){
-                  WriteActivity("ERROR: " + IntegerToString(OrderTicket()) + " No'lu emir kapatilamadi" +  
+                  WriteActivity("ERROR: " + IntegerToString(ticket) + " No'lu emir kapatilamadi" +  
                                  " .... Hata kodu = " + IntegerToString(GetLastError()));
                }else{
-                  write_log(OP_BUY, "Close");
+                  write_log(ticket, OP_BUY, "Close", NormalizeDouble(open_price, Digits), NormalizeDouble(OrderClosePrice(), Digits), OrderProfit());
                }//end if else CloseOrder
             }//end if Bid Ask
          }else{
@@ -223,10 +221,10 @@ void TracePositions()
             //if(ask < target_profit || bid > target_stop){
             if(ask <= target_profit || ask >= target_stop){
                if(CloseOrder()){
-                  WriteActivity("ERROR: " + IntegerToString(OrderTicket()) + " No'lu emir kapatilamadi" + 
+                  WriteActivity("ERROR: " + IntegerToString(ticket) + " No'lu emir kapatilamadi" + 
                                  " .... Hata kodu = " + IntegerToString(GetLastError()));
                }else{
-                  write_log(OP_SELL, "Close");
+                  write_log(ticket, OP_SELL, "Close", NormalizeDouble(open_price, Digits), NormalizeDouble(OrderClosePrice(), Digits), OrderProfit());
                }//end if else CloseOrder
             }//end if Bid Ask
          }//end if else optype  
@@ -300,27 +298,21 @@ void OnTick()
       WriteActivity("Market has gone in sell direction");
       if(one_order == TRUE){
          if(closeAllOrders()) Comment("Cannot close all orders");
-         else write_log(OP_BUY, "Close");
       }//end if one_order              
 
-      //if(openOrder(OP_SELL, lot_to_open, stop_loss_pips, take_profit_pips)){
       if(openOrder(OP_SELL, lot_to_open, 0.0, 0.0)){
          //Comment(Symbol(), " Paritesinde satis emiri acilamadi.");
       }else{
-         write_log(OP_SELL, "Open"); 
          previous_market_trend = market_trend;  
       }
    }else if((market_trend != previous_market_trend) && (market_trend == -1)){
       WriteActivity("Market has gone in buy direction");
       if(one_order == TRUE){
          if(closeAllOrders()) Comment("Cannot close all orders");
-         else write_log(OP_SELL, "Close");
       }//end if one_order
-      //if(openOrder(OP_BUY, lot_to_open, stop_loss_pips, take_profit_pips)){
       if(openOrder(OP_BUY, lot_to_open, 0.0, 0.0)){
          //Comment(Symbol(), " Paritesinde alis emiri acilamadi.");
       }else{
-         write_log(OP_BUY, "Open");
          previous_market_trend = market_trend;
       }
    }//enf if market_trend  
