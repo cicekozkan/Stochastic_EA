@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Ozkan CICEK"
 #property link      "https://www.mql5.com"
-#property version   "1.00"
+#property version   "1.0.0.3"
 #property strict
 
 #define MAX_NUM_TRIALS 5
@@ -166,7 +166,10 @@ void write_log(int op_type, string open_close)
    string date = IntegerToString(str.year) + "/" + IntegerToString(str.mon) + "/" + IntegerToString(str.day);
    string time = IntegerToString(str.hour) + ":" + IntegerToString(str.min) + ":" + IntegerToString(str.sec);
    
-   if(lfh != INVALID_HANDLE)  FileWrite(lfh, date, time, Symbol(), op_type==OP_BUY?"BUY":"SELL", open_close);
+   //"Date", "Time", "TicketNumber", "Position", "Open/Close", "OpenPrice", "ClosePrice", "Profit"
+   
+   if(lfh != INVALID_HANDLE)  FileWrite(lfh, date, time, OrderTicket(), op_type==OP_BUY?"BUY":"SELL", open_close, OrderOpenPrice(), 
+                                       open_close=="Open"?-9999:OrderClosePrice(), open_close=="Open"?-9999:OrderProfit());
 }
 
 void WriteActivity(string msg)
@@ -208,7 +211,9 @@ void TracePositions()
                if(CloseOrder()){
                   WriteActivity("ERROR: " + IntegerToString(OrderTicket()) + " No'lu emir kapatilamadi" +  
                                  " .... Hata kodu = " + IntegerToString(GetLastError()));
-               }//end if CloseOrder
+               }else{
+                  write_log(OP_BUY, "Close");
+               }//end if else CloseOrder
             }//end if Bid Ask
          }else{
             target_stop = NormalizeDouble((open_price + stop_loss_pips * 10. * Point), Digits);
@@ -220,7 +225,9 @@ void TracePositions()
                if(CloseOrder()){
                   WriteActivity("ERROR: " + IntegerToString(OrderTicket()) + " No'lu emir kapatilamadi" + 
                                  " .... Hata kodu = " + IntegerToString(GetLastError()));
-               }//end if CloseOrder
+               }else{
+                  write_log(OP_SELL, "Close");
+               }//end if else CloseOrder
             }//end if Bid Ask
          }//end if else optype  
          WriteActivity("Target stop = " + DoubleToString(target_stop) + ", Target profit = " + DoubleToString(target_profit) + 
@@ -256,10 +263,12 @@ int CloseOrder()
 //+------------------------------------------------------------------+
 int OnInit()
 {
-  //if(openOrder(OP_BUY, lot_to_open, stop_loss_pips, take_profit_pips))  Comment(Symbol(), " Paritesinde emir acilamadi.");
-  lfh = FileOpen("S_log.csv", FILE_WRITE | FILE_CSV);
-  if(lfh != INVALID_HANDLE)   FileWrite(lfh, "Date", "Time", "Parity", "Position", "Open/Close");  
-  alfh = FileOpen("S_log_activity.txt", FILE_WRITE | FILE_TXT);
+  string fn = "S_log_" + Symbol() + ".csv";
+  lfh = FileOpen(fn, FILE_WRITE | FILE_CSV);
+  if(lfh != INVALID_HANDLE)   FileWrite(lfh, "Date", "Time", "TicketNumber", "Position", "Open/Close", "OpenPrice", "ClosePrice", "Profit");  
+
+  fn = "S_log_activity_" + Symbol() + ".txt";
+  alfh = FileOpen(fn, FILE_WRITE | FILE_TXT);
   if(alfh != INVALID_HANDLE)  FileWrite(alfh, "lot to open = ", DoubleToString(lot_to_open), ", stop loss pips = ", DoubleToString(stop_loss_pips), "\n",
                                               "take profit pips = ", DoubleToString(take_profit_pips), ", %K = ", IntegerToString(k_period), "\n",
                                               "%D = ", IntegerToString(d_period), ", slowing = ", IntegerToString(slowing));
