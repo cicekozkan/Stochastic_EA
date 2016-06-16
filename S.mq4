@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Ozkan CICEK"
 #property link      "https://www.mql5.com"
-#property version   "1.0.0.8"
+#property version   "1.1.0.0"
 #property strict
 
 #define MAX_NUM_TRIALS 5
@@ -34,6 +34,7 @@ double mode_signal = 0;
 int lfh = INVALID_HANDLE; ///< Log file handle
 int alfh = INVALID_HANDLE; ///< Actions log file
 int previous_market_trend = 0;
+bool debug = false;
 
 //+------------------------------------------------------------------+
 //| Global functions                                                 |
@@ -139,10 +140,13 @@ int checkStochasticSignal()
    mode_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, averaging_method, price_fields[price_field_selected], MODE_SIGNAL, 0);
    //Comment("Main signal = ", main_signal, ", Mode signal = ", mode_signal);
       
-   com = "Main signal = " + DoubleToString(main_signal) + ", Mode signal = " + DoubleToString(mode_signal) + "\n" + 
+   com = "Main signal = " + DoubleToString(main_signal) + ", Mode signal = " + DoubleToString(mode_signal);
+   if(debug == true){
+      com += "\n" + 
          "main[0] = " + DoubleToString(main_signals[0]) + ", main[-1] = " + DoubleToString(main_signals[1]) + ", main[-2] = " + DoubleToString(main_signals[2]) + "\n" + 
          "mode[0] = " + DoubleToString(mode_signals[0]) + ", mode[-1] = " + DoubleToString(mode_signals[1]) + ", mode[-2] = " + DoubleToString(mode_signals[2]) + "\n" +
          "smaller[0] = " + DoubleToString(smaller[0]) + ", smaller[-1] = " + DoubleToString(smaller[1]) + ", smaller[-2] = " + DoubleToString(smaller[2]);
+   }
    Comment(com);
    
    // search for a change in direction
