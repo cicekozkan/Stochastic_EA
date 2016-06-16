@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Ozkan CICEK"
 #property link      "https://www.mql5.com"
-#property version   "1.0.0.5"
+#property version   "1.0.0.8"
 #property strict
 
 #define MAX_NUM_TRIALS 5
@@ -85,7 +85,7 @@ int openOrder(int op_type, double lot, double sl_pips, double tp_pips)
          Comment("Emir secilemedi... Hata kodu : ", GetLastError());
          WriteActivity("ERROR: Emir secilemedi... Hata kodu = " + IntegerToString(GetLastError()));
       }//end if order select
-      write_log(ticket, OrderType(), "Open", OrderOpenPrice(), -9999, -9999);
+      write_log(ticket, OrderType(), "Open", OrderOpenPrice(), -9999, -9999, take_profit_pips, stop_loss_pips);
    }
    return !(i_try < MAX_NUM_TRIALS); 
 }
@@ -106,7 +106,8 @@ int closeAllOrders()
             WriteActivity("ERROR: " + IntegerToString(OrderTicket()) + " No'lu emir kapatilamadi" + 
                            " .... Hata kodu = " + IntegerToString(GetLastError()));
          }else{
-            write_log(OrderTicket(), OrderType(), "Close", NormalizeDouble(OrderOpenPrice(), Digits), NormalizeDouble(OrderClosePrice(), Digits), OrderProfit());
+            write_log(OrderTicket(), OrderType(), "Close", NormalizeDouble(OrderOpenPrice(), Digits), 
+                     NormalizeDouble(OrderClosePrice(), Digits), OrderProfit(), take_profit_pips, stop_loss_pips);
          }//end if else CloseOrder  
       }// end order total for
    }//end if total_orders != 0
@@ -156,16 +157,16 @@ int checkStochasticSignal()
    return trend; 
 }
 
-void write_log(int ticket, int op_type, string open_close, double open_price, double close_price, double profit)
+void write_log(int ticket, int op_type, string open_close, double open_price, double close_price, double profit, int tp_pips, int sl_pips)
 {
    MqlDateTime str; 
    TimeToStruct(TimeCurrent(), str);
    string date = IntegerToString(str.year) + "/" + IntegerToString(str.mon) + "/" + IntegerToString(str.day);
    string time = IntegerToString(str.hour) + ":" + IntegerToString(str.min) + ":" + IntegerToString(str.sec);
    
-   //"Date", "Time", "TicketNumber", "Position", "Open/Close", "OpenPrice", "ClosePrice", "Profit"
+   //"Date", "Time", "TicketNumber", "Position", "Open/Close", "TakeProfitPips", "StopLossPips", "OpenPrice", "ClosePrice", "Profit"
    
-   if(lfh != INVALID_HANDLE)  FileWrite(lfh, date, time, ticket, op_type==OP_BUY?"BUY":"SELL", open_close, open_price, 
+   if(lfh != INVALID_HANDLE)  FileWrite(lfh, date, time, ticket, op_type==OP_BUY?"BUY":"SELL", open_close, tp_pips, sl_pips, open_price, 
                                        close_price, profit);
 }
 
@@ -203,33 +204,37 @@ void TracePositions()
             target_stop = NormalizeDouble((open_price - stop_loss_pips * 10. * Point), Digits);
             target_profit = NormalizeDouble((open_price + take_profit_pips * 10. * Point), Digits);
             bid = NormalizeDouble(Bid, Digits);
-            ask = NormalizeDouble(Ask, Digits);
+            WriteActivity("Target stop = " + DoubleToString(target_stop) + ", Target profit = " + DoubleToString(target_profit) + 
+               ", Bid = " + DoubleToString(bid));  
+            //ask = NormalizeDouble(Ask, Digits);
             //if(bid > target_profit || ask < target_stop){
             if(bid >= target_profit || bid <= target_stop){
                if(CloseOrder()){
                   WriteActivity("ERROR: " + IntegerToString(ticket) + " No'lu emir kapatilamadi" +  
                                  " .... Hata kodu = " + IntegerToString(GetLastError()));
                }else{
-                  write_log(ticket, OP_BUY, "Close", NormalizeDouble(open_price, Digits), NormalizeDouble(OrderClosePrice(), Digits), OrderProfit());
+                  write_log(ticket, OP_BUY, "Close", NormalizeDouble(open_price, Digits), 
+                           NormalizeDouble(OrderClosePrice(), Digits), OrderProfit(), take_profit_pips, stop_loss_pips);
                }//end if else CloseOrder
             }//end if Bid Ask
          }else{
             target_stop = NormalizeDouble((open_price + stop_loss_pips * 10. * Point), Digits);
             target_profit = NormalizeDouble((open_price - take_profit_pips * 10. * Point), Digits);
-            bid = NormalizeDouble(Bid, Digits);
+            //bid = NormalizeDouble(Bid, Digits);
             ask = NormalizeDouble(Ask, Digits);
+            WriteActivity("Target stop = " + DoubleToString(target_stop) + ", Target profit = " + DoubleToString(target_profit) + 
+               ", Ask = " + DoubleToString(ask)); 
             //if(ask < target_profit || bid > target_stop){
             if(ask <= target_profit || ask >= target_stop){
                if(CloseOrder()){
                   WriteActivity("ERROR: " + IntegerToString(ticket) + " No'lu emir kapatilamadi" + 
                                  " .... Hata kodu = " + IntegerToString(GetLastError()));
                }else{
-                  write_log(ticket, OP_SELL, "Close", NormalizeDouble(open_price, Digits), NormalizeDouble(OrderClosePrice(), Digits), OrderProfit());
+                  write_log(ticket, OP_SELL, "Close", NormalizeDouble(open_price, Digits), 
+                           NormalizeDouble(OrderClosePrice(), Digits), OrderProfit(), take_profit_pips, stop_loss_pips);
                }//end if else CloseOrder
             }//end if Bid Ask
          }//end if else optype  
-         WriteActivity("Target stop = " + DoubleToString(target_stop) + ", Target profit = " + DoubleToString(target_profit) + 
-               ", Bid = " + DoubleToString(bid) + ", Ask = " + DoubleToString(ask));  
       }//end for total_orders          
    }//end if total_orders != 0
 }
@@ -263,14 +268,14 @@ int OnInit()
 {
   string fn = "S_log_" + Symbol() + ".csv";
   lfh = FileOpen(fn, FILE_WRITE | FILE_CSV);
-  if(lfh != INVALID_HANDLE)   FileWrite(lfh, "Date", "Time", "TicketNumber", "Position", "Open/Close", "OpenPrice", "ClosePrice", "Profit");  
+  if(lfh != INVALID_HANDLE)   FileWrite(lfh, "Date", "Time", "TicketNumber", "Position", "Open/Close", "TakeProfitPips", "StopLossPips", "OpenPrice", "ClosePrice", "Profit");  
 
   fn = "S_log_activity_" + Symbol() + ".txt";
   alfh = FileOpen(fn, FILE_WRITE | FILE_TXT);
   if(alfh != INVALID_HANDLE)  FileWrite(alfh, "lot to open = ", DoubleToString(lot_to_open), ", stop loss pips = ", DoubleToString(stop_loss_pips), "\n",
                                               "take profit pips = ", DoubleToString(take_profit_pips), ", %K = ", IntegerToString(k_period), "\n",
                                               "%D = ", IntegerToString(d_period), ", slowing = ", IntegerToString(slowing), 
-                                              "Price Field = ", price_field_selected==low_high?"Low/High":"Close/Close");
+                                              ", Price Field = ", price_field_selected==low_high?"Low/High":"Close/Close");
   return(INIT_SUCCEEDED);
 }
 //+------------------------------------------------------------------+
