@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Ozkan CICEK"
 #property link      "https://www.mql5.com"
-#property version   "1.1.0.1"
+#property version   "1.1.0.3"
 #property strict
 
 #define MAX_NUM_TRIALS 5
@@ -80,12 +80,14 @@ int openOrder(int op_type, double lot, double sl_pips, double tp_pips)
       if (ticket != -1) break;
    }//end max trials
    if (i_try == MAX_NUM_TRIALS){
-      Comment(sym, " Paritesinde emir acilamadi. Hata kodu = ", GetLastError());
-      WriteActivity("ERROR: " + sym + " paritesinde emir acilamadi. Hata kodu = " + IntegerToString(GetLastError())); 
+      int error = GetLastError();
+      Comment(sym, " Paritesinde emir acilamadi. Hata kodu = ", error);
+      WriteActivity("ERROR: " + sym + " paritesinde emir acilamadi. Hata kodu = " + IntegerToString(error)); 
    }else{
       if(!OrderSelect(ticket, SELECT_BY_TICKET, MODE_TRADES)) {
-         Comment("Emir secilemedi... Hata kodu : ", GetLastError());
-         WriteActivity("ERROR: Emir secilemedi... Hata kodu = " + IntegerToString(GetLastError()));
+         int error = GetLastError();
+         Comment("Emir secilemedi... Hata kodu : ", error);
+         WriteActivity("ERROR: Emir secilemedi... Hata kodu = " + IntegerToString(error));
       }//end if order select
       write_log(ticket, OrderType(), "Open", OrderOpenPrice(), -9999, -9999, take_profit_pips, stop_loss_pips, lot_to_open);
    }
@@ -100,8 +102,9 @@ int closeAllOrders()
    if(total_orders != 0){
       for(int i = total_orders - 1; i >= 0; --i) {
          if(!OrderSelect(i, SELECT_BY_POS, MODE_TRADES)) {
-            Comment("Emir secilemedi... Hata kodu : ", GetLastError());
-            WriteActivity("ERROR: Emir secilemedi... Hata kodu : " + IntegerToString(GetLastError()));
+            int error = GetLastError();
+            Comment("Emir secilemedi... Hata kodu : ", error);
+            WriteActivity("ERROR: Emir secilemedi... Hata kodu : " + IntegerToString(error));
             continue;
          }//end if order select
          if(OrderSymbol() != current_sym)   continue;         
@@ -199,8 +202,9 @@ void TracePositions()
    if(total_orders != 0){
       for(int i = total_orders - 1; i >= 0; --i) {
          if(!OrderSelect(i, SELECT_BY_POS, MODE_TRADES)) {
-            Comment("Emir secilemedi... Hata kodu : ", GetLastError());
-            WriteActivity("ERROR: Emir secilemedi... Hata kodu = " + IntegerToString(GetLastError()));
+            int error = GetLastError();
+            Comment("Emir secilemedi... Hata kodu : ", error);
+            WriteActivity("ERROR: Emir secilemedi... Hata kodu = " + IntegerToString(error));
             continue;
          }//end if order select
          if(OrderSymbol() != current_sym)   continue;
