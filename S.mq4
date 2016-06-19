@@ -87,7 +87,7 @@ int openOrder(int op_type, double lot, double sl_pips, double tp_pips)
          Comment("Emir secilemedi... Hata kodu : ", GetLastError());
          WriteActivity("ERROR: Emir secilemedi... Hata kodu = " + IntegerToString(GetLastError()));
       }//end if order select
-      write_log(ticket, OrderType(), "Open", OrderOpenPrice(), -9999, -9999, take_profit_pips, stop_loss_pips);
+      write_log(ticket, OrderType(), "Open", OrderOpenPrice(), -9999, -9999, take_profit_pips, stop_loss_pips, lot_to_open);
    }
    return !(i_try < MAX_NUM_TRIALS); 
 }
@@ -110,7 +110,7 @@ int closeAllOrders()
                            " .... Hata kodu = " + IntegerToString(GetLastError()));
          }else{
             write_log(OrderTicket(), OrderType(), "Close", NormalizeDouble(OrderOpenPrice(), Digits), 
-                     NormalizeDouble(OrderClosePrice(), Digits), OrderProfit(), take_profit_pips, stop_loss_pips);
+                     NormalizeDouble(OrderClosePrice(), Digits), OrderProfit(), take_profit_pips, stop_loss_pips, lot_to_open);
          }//end if else CloseOrder  
       }// end order total for
    }//end if total_orders != 0
@@ -166,16 +166,16 @@ int checkStochasticSignal()
    return trend; 
 }
 
-void write_log(int ticket, int op_type, string open_close, double open_price, double close_price, double profit, double tp_pips, double sl_pips)
+void write_log(int ticket, int op_type, string open_close, double open_price, double close_price, double profit, double tp_pips, double sl_pips, double lot)
 {
    MqlDateTime str; 
    TimeToStruct(TimeCurrent(), str);
    string date = IntegerToString(str.year) + "/" + IntegerToString(str.mon) + "/" + IntegerToString(str.day);
    string time = IntegerToString(str.hour) + ":" + IntegerToString(str.min) + ":" + IntegerToString(str.sec);
    
-   //"Date", "Time", "TicketNumber", "Position", "Open/Close", "TakeProfitPips", "StopLossPips", "OpenPrice", "ClosePrice", "Profit"
+   //"Date", "Time", "TicketNumber", "Position", "Open/Close", "Lot", "TakeProfitPips", "StopLossPips", "OpenPrice", "ClosePrice", "Profit"
    
-   if(lfh != INVALID_HANDLE)  FileWrite(lfh, date, time, ticket, op_type==OP_BUY?"BUY":"SELL", open_close, tp_pips, sl_pips, open_price, 
+   if(lfh != INVALID_HANDLE)  FileWrite(lfh, date, time, ticket, op_type==OP_BUY?"BUY":"SELL", open_close, lot, tp_pips, sl_pips, open_price, 
                                        close_price, profit);
 }
 
@@ -223,7 +223,7 @@ void TracePositions()
                                  " .... Hata kodu = " + IntegerToString(GetLastError()));
                }else{
                   write_log(ticket, OP_BUY, "Close", NormalizeDouble(open_price, Digits), 
-                           NormalizeDouble(OrderClosePrice(), Digits), OrderProfit(), take_profit_pips, stop_loss_pips);
+                           NormalizeDouble(OrderClosePrice(), Digits), OrderProfit(), take_profit_pips, stop_loss_pips, lot_to_open);
                }//end if else CloseOrder
             }//end if Bid Ask
          }else{
@@ -240,7 +240,7 @@ void TracePositions()
                                  " .... Hata kodu = " + IntegerToString(GetLastError()));
                }else{
                   write_log(ticket, OP_SELL, "Close", NormalizeDouble(open_price, Digits), 
-                           NormalizeDouble(OrderClosePrice(), Digits), OrderProfit(), take_profit_pips, stop_loss_pips);
+                           NormalizeDouble(OrderClosePrice(), Digits), OrderProfit(), take_profit_pips, stop_loss_pips, lot_to_open);
                }//end if else CloseOrder
             }//end if Bid Ask
          }//end if else optype  
@@ -277,7 +277,7 @@ int OnInit()
 {
   string fn = "S_log_" + Symbol() + ".csv";
   lfh = FileOpen(fn, FILE_WRITE | FILE_CSV);
-  if(lfh != INVALID_HANDLE)   FileWrite(lfh, "Date", "Time", "TicketNumber", "Position", "Open/Close", "TakeProfitPips", "StopLossPips", "OpenPrice", "ClosePrice", "Profit");  
+  if(lfh != INVALID_HANDLE)   FileWrite(lfh, "Date", "Time", "TicketNumber", "Position", "Open/Close", "Lot", "TakeProfitPips", "StopLossPips", "OpenPrice", "ClosePrice", "Profit");  
 
   fn = "S_log_activity_" + Symbol() + ".txt";
   alfh = FileOpen(fn, FILE_WRITE | FILE_TXT);
@@ -302,9 +302,6 @@ void OnDeinit(const int reason)
 void OnTick()
 {
    int market_trend = 0;
-   //main_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, MODE_SMA, 1, MODE_MAIN, 0);
-   //mode_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, MODE_SMA, 1, MODE_SIGNAL, 0);
-   //Comment("Main signal = ", main_signal, ", Mode signal = ", mode_signal); 
    
    TracePositions();
    market_trend = checkStochasticSignal();
