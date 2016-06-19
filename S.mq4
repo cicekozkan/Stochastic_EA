@@ -15,9 +15,9 @@ enum price_field{
    low_high = 0,
    close_close = 1
 };
-
+extern bool print_signals = false; // Print Stochastic Oscillator Signals 
 extern double lot_to_open = 1.0;  // Lot to open
-extern int slippage = 9; ///< Maximum price slippage for buy or sell orders
+extern int slippage = 9; // Maximum price slippage for buy or sell orders
 extern double stop_loss_pips = 4.0; // Stop loss pips
 extern double take_profit_pips = 6.0; // Take profit pips
 extern bool one_order = FALSE; // Open only one order
@@ -126,7 +126,7 @@ int checkStochasticSignal()
    int i_sig = 0, i_history = 0;
    int smaller[SIZE_SIGNALS] = {0};
    int sum = 0;
-   string com;
+   string com = "";
    int trend = 0; // do nothing
    int price_fields[2] = {0, 1};
    
@@ -142,14 +142,17 @@ int checkStochasticSignal()
    mode_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, averaging_method, price_fields[price_field_selected], MODE_SIGNAL, 0);
    //Comment("Main signal = ", main_signal, ", Mode signal = ", mode_signal);
       
-   com = "Main signal = " + DoubleToString(main_signal) + ", Mode signal = " + DoubleToString(mode_signal);
+   if (print_signals == true){
+      com = "Main signal = " + DoubleToString(main_signal) + ", Mode signal = " + DoubleToString(mode_signal);
+      Comment(com);
+   }
    if(debug == true){
       com += "\n" + 
          "main[0] = " + DoubleToString(main_signals[0]) + ", main[-1] = " + DoubleToString(main_signals[1]) + ", main[-2] = " + DoubleToString(main_signals[2]) + "\n" + 
          "mode[0] = " + DoubleToString(mode_signals[0]) + ", mode[-1] = " + DoubleToString(mode_signals[1]) + ", mode[-2] = " + DoubleToString(mode_signals[2]) + "\n" +
          "smaller[0] = " + DoubleToString(smaller[0]) + ", smaller[-1] = " + DoubleToString(smaller[1]) + ", smaller[-2] = " + DoubleToString(smaller[2]);
+         Comment(com);
    }
-   Comment(com);
    
    // search for a change in direction
    if(sum != 0 || sum != SIZE_SIGNALS){
