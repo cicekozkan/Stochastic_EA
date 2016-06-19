@@ -80,7 +80,8 @@ int openOrder(int op_type, double lot, double sl_pips, double tp_pips)
       if (ticket != -1) break;
    }//end max trials
    if (i_try == MAX_NUM_TRIALS){
-      Comment(sym, " Paritesinde emir acilamadi. Hata kodu = ", GetLastError()); 
+      Comment(sym, " Paritesinde emir acilamadi. Hata kodu = ", GetLastError());
+      WriteActivity("ERROR: " + sym + " paritesinde emir acilamadi. Hata kodu = " + IntegerToString(GetLastError())); 
    }else{
       if(!OrderSelect(ticket, SELECT_BY_TICKET, MODE_TRADES)) {
          Comment("Emir secilemedi... Hata kodu : ", GetLastError());
@@ -100,6 +101,7 @@ int closeAllOrders()
       for(int i = total_orders - 1; i >= 0; --i) {
          if(!OrderSelect(i, SELECT_BY_POS, MODE_TRADES)) {
             Comment("Emir secilemedi... Hata kodu : ", GetLastError());
+            WriteActivity("ERROR: Emir secilemedi... Hata kodu : " + IntegerToString(GetLastError()));
             continue;
          }//end if order select
          if(OrderSymbol() != current_sym)   continue;         
@@ -307,7 +309,10 @@ void OnTick()
    if((market_trend != previous_market_trend) && (market_trend == 1)){
       WriteActivity("Market has gone in sell direction");
       if(one_order == TRUE){
-         if(closeAllOrders()) Comment("Cannot close all orders");
+         if(closeAllOrders()){
+            Comment("Cannot close all orders");
+            WriteActivity("ERROR: Cannot close all orders");
+         }
       }//end if one_order              
 
       if(openOrder(OP_SELL, lot_to_open, 0.0, 0.0)){
@@ -318,7 +323,10 @@ void OnTick()
    }else if((market_trend != previous_market_trend) && (market_trend == -1)){
       WriteActivity("Market has gone in buy direction");
       if(one_order == TRUE){
-         if(closeAllOrders()) Comment("Cannot close all orders");
+         if(closeAllOrders()){
+            Comment("Cannot close all orders");
+            WriteActivity("ERROR: Cannot close all orders");
+         }
       }//end if one_order
       if(openOrder(OP_BUY, lot_to_open, 0.0, 0.0)){
          //Comment(Symbol(), " Paritesinde alis emiri acilamadi.");
