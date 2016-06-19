@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Ozkan CICEK"
 #property link      "https://www.mql5.com"
-#property version   "1.1.0.0"
+#property version   "1.1.0.1"
 #property strict
 
 #define MAX_NUM_TRIALS 5
@@ -18,8 +18,8 @@ enum price_field{
 
 extern double lot_to_open = 1.0;  // Lot to open
 extern int slippage = 9; ///< Maximum price slippage for buy or sell orders
-extern int stop_loss_pips = 4; // Stop loss pips
-extern int take_profit_pips = 6; // Take profit pips
+extern double stop_loss_pips = 4.0; // Stop loss pips
+extern double take_profit_pips = 6.0; // Take profit pips
 extern bool one_order = FALSE; // Open only one order
 extern int k_period = 5; // %K
 extern int d_period = 3; // %D
@@ -161,7 +161,7 @@ int checkStochasticSignal()
    return trend; 
 }
 
-void write_log(int ticket, int op_type, string open_close, double open_price, double close_price, double profit, int tp_pips, int sl_pips)
+void write_log(int ticket, int op_type, string open_close, double open_price, double close_price, double profit, double tp_pips, double sl_pips)
 {
    MqlDateTime str; 
    TimeToStruct(TimeCurrent(), str);
