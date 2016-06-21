@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Ozkan CICEK"
 #property link      "https://www.mql5.com"
-#property version   "1.1.0.3"
+#property version   "1.2.0.1"
 #property strict
 
 #define MAX_NUM_TRIALS 5
@@ -132,9 +132,10 @@ int checkStochasticSignal()
    string com = "";
    int trend = 0; // do nothing
    int price_fields[2] = {0, 1};
+   int offset = 0;
    
    for(i_sig = 0; i_sig < SIZE_SIGNALS; i_sig++){
-      i_history = 1 + i_sig;
+      i_history = offset + i_sig;
       main_signals[i_sig] = iStochastic(Symbol(), 0, k_period, d_period, slowing, averaging_method, price_fields[price_field_selected], MODE_MAIN, i_history); 
       mode_signals[i_sig] = iStochastic(Symbol(), 0, k_period, d_period, slowing, averaging_method, price_fields[price_field_selected], MODE_SIGNAL, i_history);
       smaller[i_sig] = main_signals[i_sig] < mode_signals[i_sig];
