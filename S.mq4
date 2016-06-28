@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Ozkan CICEK"
 #property link      "https://www.mql5.com"
-#property version   "1.3.0"
+#property version   "1.3.0.1"
 #property strict
 
 #define MAX_NUM_TRIALS 5
@@ -26,6 +26,7 @@ extern int d_period = 3; // %D
 extern int slowing = 3; // Slowing
 extern ENUM_MA_METHOD averaging_method = MODE_SMA; // SO averaging method
 extern price_field price_field_selected = low_high; // SO price field
+extern int offset = 0; // SO offset
 int num_orders_to_open = 1;
 int num_open_orders = 0;
 double main_signal = 0;
@@ -132,7 +133,6 @@ int checkStochasticSignal()
    string com = "";
    int trend = 0; // do nothing
    int price_fields[2] = {0, 1};
-   int offset = 0;
    
    for(i_sig = 0; i_sig < SIZE_SIGNALS; i_sig++){
       i_history = offset + i_sig;
