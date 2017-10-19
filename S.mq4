@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Ozkan CICEK"
 #property link      "https://www.mql5.com"
-#property version   "1.3.0.1"
+#property version   "1.4.0"
 #property strict
 
 #define MAX_NUM_TRIALS 5
