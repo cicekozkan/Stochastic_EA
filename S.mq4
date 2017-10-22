@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Ozkan CICEK"
 #property link      "https://www.mql5.com"
-#property version   "1.4.0"
+#property version   "1.4.0.3"
 #property strict
 
 #define MAX_NUM_TRIALS 5
@@ -20,7 +20,7 @@ extern double lot_to_open = 1.0;  // Lot to open
 extern int slippage = 9; // Maximum price slippage for buy or sell orders
 extern double stop_loss_pips = 4.0; // Stop loss pips
 extern double take_profit_pips = 6.0; // Take profit pips
-extern bool one_order = FALSE; // Open only one order
+//extern bool one_order = FALSE; // Open only one order
 extern int k_period = 5; // %K
 extern int d_period = 3; // %D
 extern int slowing = 3; // Slowing
@@ -34,8 +34,9 @@ double mode_signal = 0;
 
 int lfh = INVALID_HANDLE; ///< Log file handle
 int alfh = INVALID_HANDLE; ///< Actions log file
-int previous_market_trend = 0;
+//int previous_market_trend = 0;
 bool debug = false;
+bool orderOpened = false;
 
 //+------------------------------------------------------------------+
 //| Global functions                                                 |
@@ -144,7 +145,6 @@ int checkStochasticSignal()
    
    main_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, averaging_method, price_fields[price_field_selected], MODE_MAIN, 0);
    mode_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, averaging_method, price_fields[price_field_selected], MODE_SIGNAL, 0);
-   //Comment("Main signal = ", main_signal, ", Mode signal = ", mode_signal);
       
    if (print_signals == true){
       com = "Main signal = " + DoubleToString(main_signal) + ", Mode signal = " + DoubleToString(mode_signal);
@@ -219,7 +219,7 @@ void TracePositions()
             target_profit = NormalizeDouble((open_price + take_profit_pips * 10. * Point), Digits);
             bid = NormalizeDouble(Bid, Digits);
             WriteActivity("Target stop = " + DoubleToString(target_stop) + ", Target profit = " + DoubleToString(target_profit) + 
-               ", Bid = " + DoubleToString(bid));  
+                          ", Bid = " + DoubleToString(bid));  
             //ask = NormalizeDouble(Ask, Digits);
             //if(bid > target_profit || ask < target_stop){
             if(bid >= target_profit || bid <= target_stop){
@@ -229,6 +229,7 @@ void TracePositions()
                }else{
                   write_log(ticket, OP_BUY, "Close", NormalizeDouble(open_price, Digits), 
                            NormalizeDouble(OrderClosePrice(), Digits), OrderProfit(), take_profit_pips, stop_loss_pips, lot_to_open);
+                  orderOpened = false;
                }//end if else CloseOrder
             }//end if Bid Ask
          }else{
@@ -237,7 +238,7 @@ void TracePositions()
             //bid = NormalizeDouble(Bid, Digits);
             ask = NormalizeDouble(Ask, Digits);
             WriteActivity("Target stop = " + DoubleToString(target_stop) + ", Target profit = " + DoubleToString(target_profit) + 
-               ", Ask = " + DoubleToString(ask)); 
+                          ", Ask = " + DoubleToString(ask)); 
             //if(ask < target_profit || bid > target_stop){
             if(ask <= target_profit || ask >= target_stop){
                if(CloseOrder()){
@@ -246,6 +247,7 @@ void TracePositions()
                }else{
                   write_log(ticket, OP_SELL, "Close", NormalizeDouble(open_price, Digits), 
                            NormalizeDouble(OrderClosePrice(), Digits), OrderProfit(), take_profit_pips, stop_loss_pips, lot_to_open);
+                  orderOpened = false;
                }//end if else CloseOrder
             }//end if Bid Ask
          }//end if else optype  
@@ -253,7 +255,7 @@ void TracePositions()
    }//end if total_orders != 0
 }
 
-/*! Close the order selected with OrderSelect function*/
+/*! Close the order selected with OrderSelect function */
 int CloseOrder()
 {
    int optype = OrderType();
@@ -309,34 +311,42 @@ void OnTick()
    int market_trend = 0;
    
    TracePositions();
+   if (orderOpened) return; // open only one order
    market_trend = checkStochasticSignal();
    
-   if((market_trend != previous_market_trend) && (market_trend == 1)){
+   //if((market_trend != previous_market_trend) && (market_trend == 1)){
+   if (market_trend == 1) {
       WriteActivity("Market has gone in sell direction");
+      /*
       if(one_order == TRUE){
          if(closeAllOrders()){
             Comment("Cannot close all orders");
             WriteActivity("ERROR: Cannot close all orders");
          }
       }//end if one_order              
-
+      */
       if(openOrder(OP_SELL, lot_to_open, 0.0, 0.0)){
          //Comment(Symbol(), " Paritesinde satis emiri acilamadi.");
       }else{
-         previous_market_trend = market_trend;  
+         //previous_market_trend = market_trend;
+         orderOpened = true;  
       }
-   }else if((market_trend != previous_market_trend) && (market_trend == -1)){
+   //}else if((market_trend != previous_market_trend) && (market_trend == -1)){
+   }else if (market_trend == -1) {
       WriteActivity("Market has gone in buy direction");
+      /*
       if(one_order == TRUE){
          if(closeAllOrders()){
             Comment("Cannot close all orders");
             WriteActivity("ERROR: Cannot close all orders");
          }
       }//end if one_order
+      */
       if(openOrder(OP_BUY, lot_to_open, 0.0, 0.0)){
          //Comment(Symbol(), " Paritesinde alis emiri acilamadi.");
       }else{
-         previous_market_trend = market_trend;
+         //previous_market_trend = market_trend;
+         orderOpened = true;
       }
    }//enf if market_trend  
    
