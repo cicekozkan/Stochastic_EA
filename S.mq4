@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Ozkan CICEK"
 #property link      "https://www.mql5.com"
-#property version   "1.4.0.3"
+#property version   "1.4.0.10"
 #property strict
 
 #define MAX_NUM_TRIALS 5
@@ -27,6 +27,7 @@ extern int slowing = 3; // Slowing
 extern ENUM_MA_METHOD averaging_method = MODE_SMA; // SO averaging method
 extern price_field price_field_selected = low_high; // SO price field
 extern int offset = 0; // SO offset
+extern double max_spread = 2.0;
 int num_orders_to_open = 1;
 int num_open_orders = 0;
 double main_signal = 0;
@@ -41,6 +42,21 @@ bool orderOpened = false;
 //+------------------------------------------------------------------+
 //| Global functions                                                 |
 //+------------------------------------------------------------------+
+
+double getSpread()
+{
+   string sym = Symbol(); ///< Current chart's symbol
+   double point = MarketInfo(sym, MODE_POINT) * 10.;
+   double spread, bidPrice, askPrice;
+   
+   bidPrice = NormalizeDouble(MarketInfo(sym, MODE_BID), Digits);	
+   askPrice = NormalizeDouble(MarketInfo(sym, MODE_ASK), Digits);
+   spread = NormalizeDouble(MathAbs(bidPrice - askPrice), Digits)/point;
+   
+   return spread;   
+}
+
+
 /*!
 Open order in current chart's symbol
 */ 
@@ -199,7 +215,7 @@ void TracePositions()
    double profit = 0.0;
    total_orders = OrdersTotal();
    string current_sym = Symbol();
-   
+      
    if(total_orders != 0){
       for(int i = total_orders - 1; i >= 0; --i) {
          if(!OrderSelect(i, SELECT_BY_POS, MODE_TRADES)) {
@@ -309,10 +325,15 @@ void OnDeinit(const int reason)
 void OnTick()
 {
    int market_trend = 0;
+   double spread; 
    
    TracePositions();
    if (orderOpened) return; // open only one order
+   
    market_trend = checkStochasticSignal();
+   
+   spread = getSpread();   
+   if (spread > max_spread) return;
    
    //if((market_trend != previous_market_trend) && (market_trend == 1)){
    if (market_trend == 1) {
