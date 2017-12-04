@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Ozkan CICEK"
 #property link      "https://www.mql5.com"
-#property version   "1.4.0.10"
+#property version   "1.5.0.0"
 #property strict
 
 #define MAX_NUM_TRIALS 5
@@ -38,6 +38,9 @@ int alfh = INVALID_HANDLE; ///< Actions log file
 //int previous_market_trend = 0;
 bool debug = false;
 bool orderOpened = false;
+bool noiseEliminate = false; // old method of opening order 001 or 110
+int signalState = 0; // 0 = equal, 1 = main > mode, -1 = main < mode
+int previousSignalState = 0; // 0 = equal, 1 = main > mode, -1 = main < mode
 
 //+------------------------------------------------------------------+
 //| Global functions                                                 |
@@ -151,38 +154,52 @@ int checkStochasticSignal()
    int trend = 0; // do nothing
    int price_fields[2] = {0, 1};
    
-   for(i_sig = 0; i_sig < SIZE_SIGNALS; i_sig++){
-      i_history = offset + i_sig;
-      main_signals[i_sig] = iStochastic(Symbol(), 0, k_period, d_period, slowing, averaging_method, price_fields[price_field_selected], MODE_MAIN, i_history); 
-      mode_signals[i_sig] = iStochastic(Symbol(), 0, k_period, d_period, slowing, averaging_method, price_fields[price_field_selected], MODE_SIGNAL, i_history);
-      smaller[i_sig] = main_signals[i_sig] < mode_signals[i_sig];
-      sum += smaller[i_sig];
-   }//end for i_sig
+   if ( noiseEliminate ) {
+      for(i_sig = 0; i_sig < SIZE_SIGNALS; i_sig++){
+         i_history = offset + i_sig;
+         main_signals[i_sig] = iStochastic(Symbol(), 0, k_period, d_period, slowing, averaging_method, price_fields[price_field_selected], MODE_MAIN, i_history); 
+         mode_signals[i_sig] = iStochastic(Symbol(), 0, k_period, d_period, slowing, averaging_method, price_fields[price_field_selected], MODE_SIGNAL, i_history);
+         smaller[i_sig] = main_signals[i_sig] < mode_signals[i_sig];
+         sum += smaller[i_sig];
+      }//end for i_sig
+   }// end if noise eliminate
    
    main_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, averaging_method, price_fields[price_field_selected], MODE_MAIN, 0);
    mode_signal = iStochastic(Symbol(), 0, k_period, d_period, slowing, averaging_method, price_fields[price_field_selected], MODE_SIGNAL, 0);
+   
+   trend = 0; // do nothing
+   if ( main_signal > mode_signal ) signalState = 1;
+   else if ( main_signal < mode_signal ) signalState = -1;
+      
+   if ( previousSignalState == 1 && signalState == -1) trend = 1; // sell
+   if ( previousSignalState == -1 && signalState == 1) trend = -1; // buy
+   previousSignalState = signalState;
       
    if (print_signals == true){
       com = "Main signal = " + DoubleToString(main_signal) + ", Mode signal = " + DoubleToString(mode_signal);
       Comment(com);
    }
-   if(debug == true){
-      com += "\n" + 
-         "main[0] = " + DoubleToString(main_signals[0]) + ", main[-1] = " + DoubleToString(main_signals[1]) + ", main[-2] = " + DoubleToString(main_signals[2]) + "\n" + 
-         "mode[0] = " + DoubleToString(mode_signals[0]) + ", mode[-1] = " + DoubleToString(mode_signals[1]) + ", mode[-2] = " + DoubleToString(mode_signals[2]) + "\n" +
-         "smaller[0] = " + DoubleToString(smaller[0]) + ", smaller[-1] = " + DoubleToString(smaller[1]) + ", smaller[-2] = " + DoubleToString(smaller[2]);
-         Comment(com);
-   }
    
-   // search for a change in direction
-   if(sum != 0 || sum != SIZE_SIGNALS){
-      // find out where market goes
-      if(smaller[0] == 1 && smaller[SIZE_SIGNALS-1] == 0){
-        trend = 1; // sell
-      }else if (smaller[0] == 0 && smaller[SIZE_SIGNALS-1] == 1){
-        trend = -1; // buy
+   if ( noiseEliminate ) {
+      if(debug == true){
+         com += "\n" + 
+            "main[0] = " + DoubleToString(main_signals[0]) + ", main[-1] = " + DoubleToString(main_signals[1]) + ", main[-2] = " + DoubleToString(main_signals[2]) + "\n" + 
+            "mode[0] = " + DoubleToString(mode_signals[0]) + ", mode[-1] = " + DoubleToString(mode_signals[1]) + ", mode[-2] = " + DoubleToString(mode_signals[2]) + "\n" +
+            "smaller[0] = " + DoubleToString(smaller[0]) + ", smaller[-1] = " + DoubleToString(smaller[1]) + ", smaller[-2] = " + DoubleToString(smaller[2]);
+            Comment(com);
       }
-   }
+   
+      // search for a change in direction
+      if(sum != 0 || sum != SIZE_SIGNALS) {
+         // find out where market goes
+         if(smaller[0] == 1 && smaller[SIZE_SIGNALS-1] == 0){
+           trend = 1; // sell
+         }else if (smaller[0] == 0 && smaller[SIZE_SIGNALS-1] == 1){
+           trend = -1; // buy
+         }
+      }
+   }// end if noise eliminate
+   
    return trend; 
 }
 
@@ -351,6 +368,7 @@ void OnTick()
       }else{
          //previous_market_trend = market_trend;
          orderOpened = true;  
+         previousSignalState = 0; // make sure signal states are equal before beginning to a new run
       }
    //}else if((market_trend != previous_market_trend) && (market_trend == -1)){
    }else if (market_trend == -1) {
@@ -368,6 +386,7 @@ void OnTick()
       }else{
          //previous_market_trend = market_trend;
          orderOpened = true;
+         previousSignalState = 0; // make sure signal states are equal before beginning to a new run
       }
    }//enf if market_trend  
    

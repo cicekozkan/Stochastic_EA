@@ -1,3 +1,6 @@
+* TODO Saat bilgisini alabilir miyiz?
+* DONE Gecmis so datasina bakmadan alis satis yap
+Completed on <2017-12-04 Mon>. Version 1.5.0.0
 * DONE Fix SO close/close, low/high selection
 * DONE Log open price, close price, profit
 * DONE Create dedicated files for each parity
