@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Ozkan CICEK"
 #property link      "https://www.mql5.com"
-#property version   "1.5.0.0"
+#property version   "1.6.0.0"
 #property strict
 
 #define MAX_NUM_TRIALS 5
@@ -251,8 +251,10 @@ void TracePositions()
             target_stop = NormalizeDouble((open_price - stop_loss_pips * 10. * Point), Digits);
             target_profit = NormalizeDouble((open_price + take_profit_pips * 10. * Point), Digits);
             bid = NormalizeDouble(Bid, Digits);
+            /*
             WriteActivity("Target stop = " + DoubleToString(target_stop) + ", Target profit = " + DoubleToString(target_profit) + 
                           ", Bid = " + DoubleToString(bid));  
+            */
             //ask = NormalizeDouble(Ask, Digits);
             //if(bid > target_profit || ask < target_stop){
             if(bid >= target_profit || bid <= target_stop){
@@ -270,8 +272,10 @@ void TracePositions()
             target_profit = NormalizeDouble((open_price - take_profit_pips * 10. * Point), Digits);
             //bid = NormalizeDouble(Bid, Digits);
             ask = NormalizeDouble(Ask, Digits);
+            /*
             WriteActivity("Target stop = " + DoubleToString(target_stop) + ", Target profit = " + DoubleToString(target_profit) + 
-                          ", Ask = " + DoubleToString(ask)); 
+                          ", Ask = " + DoubleToString(ask));
+            */ 
             //if(ask < target_profit || bid > target_stop){
             if(ask <= target_profit || ask >= target_stop){
                if(CloseOrder()){
@@ -365,6 +369,8 @@ void OnTick()
       */
       if(openOrder(OP_SELL, lot_to_open, 0.0, 0.0)){
          //Comment(Symbol(), " Paritesinde satis emiri acilamadi.");
+         WriteActivity("ERROR: " + Symbol() + " Paritesinde satis emiri acilamadi." + 
+              " .... Hata kodu = " + IntegerToString(GetLastError()));
       }else{
          //previous_market_trend = market_trend;
          orderOpened = true;  
@@ -383,6 +389,8 @@ void OnTick()
       */
       if(openOrder(OP_BUY, lot_to_open, 0.0, 0.0)){
          //Comment(Symbol(), " Paritesinde alis emiri acilamadi.");
+         WriteActivity("ERROR: " + Symbol() + " Paritesinde alis emiri acilamadi." + 
+                       " .... Hata kodu = " + IntegerToString(GetLastError()));         
       }else{
          //previous_market_trend = market_trend;
          orderOpened = true;
